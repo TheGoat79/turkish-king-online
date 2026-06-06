@@ -1,5 +1,4 @@
-const SERVER_URL = window.SERVER_URL || "http://localhost:3000";
-const socket = io(SERVER_URL);
+const socket = io();
 
 let roomCode = null;
 let hand = [];
