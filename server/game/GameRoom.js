@@ -1,7 +1,6 @@
 const Deck = require('./Deck');
 const Player = require('./Player');
-
-const MAX_PLAYERS = 4;
+const { MAX_PLAYERS } = require('./constants');
 
 class GameRoom {
   constructor(roomCode) {
@@ -14,6 +13,10 @@ class GameRoom {
     this.started = false;
   }
 
+  findPlayer(id) {
+    return this.players.findIndex(p => p.id === id);
+  }
+
   addPlayer(id, name) {
     if (this.players.length >= MAX_PLAYERS) return false;
     if (this.players.some(p => p.id === id)) return true;
@@ -23,7 +26,7 @@ class GameRoom {
   }
 
   removePlayer(id) {
-    const index = this.players.findIndex(p => p.id === id);
+    const index = this.findPlayer(id);
     if (index === -1) return false;
 
     this.players.splice(index, 1);
@@ -78,7 +81,7 @@ class GameRoom {
   playCard(playerId, cardIndex) {
     if (!this.started) return { ok: false, error: 'Game has not started' };
 
-    const playerIndex = this.players.findIndex(p => p.id === playerId);
+    const playerIndex = this.findPlayer(playerId);
     if (playerIndex === -1) return { ok: false, error: 'You are not in this game' };
     if (playerIndex !== this.currentTurn) return { ok: false, error: 'Not your turn' };
 
@@ -131,7 +134,7 @@ class GameRoom {
 
     this.trick = [];
     this.leadSuit = null;
-    this.currentTurn = this.players.findIndex(p => p.id === best.playerId);
+    this.currentTurn = this.findPlayer(best.playerId);
 
     return best.playerId;
   }

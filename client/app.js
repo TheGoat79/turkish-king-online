@@ -17,8 +17,7 @@ function playerName() {
 }
 
 function updateRoomCode() {
-  const el = $('room-code');
-  if (el) el.innerText = roomCode || '---';
+  setText('room-code', roomCode || '---');
 }
 
 function copyRoomCode() {
@@ -48,11 +47,11 @@ function renderHand() {
   handDiv.innerHTML = '';
   const myTurn = currentTurn === myId;
   hand.forEach((card, index) => {
-    const div = document.createElement('div');
-    div.className = 'card' + (myTurn ? '' : ' disabled');
-    div.innerHTML = `<div>${card.rank}</div><div class="suit">${card.suit}</div>`;
-    if (myTurn) div.onclick = () => socket.emit('play-card', { index });
-    handDiv.appendChild(div);
+    const el = createCardElement(card, {
+      extraClass: myTurn ? '' : 'disabled',
+      onClick: myTurn ? () => socket.emit('play-card', { index }) : null
+    });
+    handDiv.appendChild(el);
   });
 }
 
@@ -94,16 +93,12 @@ function renderTrick(trick) {
   if (!table) return;
   table.innerHTML = '';
   trick.forEach(({ card }) => {
-    const div = document.createElement('div');
-    div.className = 'card table-card';
-    div.innerHTML = `<div>${card.rank}</div><div class="suit">${card.suit}</div>`;
-    table.appendChild(div);
+    table.appendChild(createCardElement(card, { extraClass: 'table-card' }));
   });
 }
 
 function setStatus(text) {
-  const el = $('status');
-  if (el) el.innerText = text;
+  setText('status', text);
 }
 
 socket.on('room-created', code => { roomCode = code; updateRoomCode(); });

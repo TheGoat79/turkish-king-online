@@ -1,3 +1,5 @@
+const { FACE_VALUES } = require('./constants');
+
 class Card {
   constructor(suit, rank) {
     this.suit = suit;
@@ -5,13 +7,7 @@ class Card {
   }
 
   value() {
-    const v = {
-      J: 11,
-      Q: 12,
-      K: 13,
-      A: 14
-    };
-    return v[this.rank] || parseInt(this.rank);
+    return FACE_VALUES[this.rank] || parseInt(this.rank);
   }
 
   toString() {
