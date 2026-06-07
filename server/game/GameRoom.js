@@ -14,12 +14,21 @@ class GameRoom {
 
   addPlayer(id) {
     if (this.players.length >= 4) return false;
+    if (this.players.some(p => p.id === id)) return false;
 
     const player = new Player(id);
     this.players.push(player);
     this.scores[id] = 0;
 
     return true;
+  }
+
+  removePlayer(id) {
+    const idx = this.players.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      this.players.splice(idx, 1);
+      delete this.scores[id];
+    }
   }
 
   startGame() {
@@ -37,9 +46,13 @@ class GameRoom {
 
   playCard(playerId, cardIndex) {
     const playerIndex = this.players.findIndex(p => p.id === playerId);
-    if (playerIndex !== this.currentTurn) return null;
+    if (playerIndex === -1 || playerIndex !== this.currentTurn) return null;
+    if (!this.started) return null;
 
-    const card = this.players[playerIndex].playCard(cardIndex);
+    const player = this.players[playerIndex];
+    if (cardIndex < 0 || cardIndex >= player.hand.length) return null;
+
+    const card = player.playCard(cardIndex);
     this.trick.push({ playerId, card });
 
     this.currentTurn = (this.currentTurn + 1) % 4;
