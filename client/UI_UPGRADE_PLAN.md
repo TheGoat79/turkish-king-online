@@ -1,0 +1,1 @@
+Phase 1 complete. Next target UI: player seats, chat panel, scoreboard, realistic cards, turn indicators, responsive layout.
