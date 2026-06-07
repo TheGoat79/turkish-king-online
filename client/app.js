@@ -114,6 +114,7 @@ socket.on('game-started', () => setStatus('Game started!'));
 socket.on('state', state => {
   $('player-count').innerText = state.players.length;
   currentTurn = state.currentTurn;
+  if (!state.started) hand = [];
   renderSeats(state.players);
   renderScoreboard(state.players);
   renderTrick(state.trick);
