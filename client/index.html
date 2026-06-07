@@ -28,6 +28,7 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
+      overflow-y: auto;
     }
 
     .panel {
@@ -36,6 +37,8 @@
       padding: 16px;
       border: 1px solid rgba(255,255,255,.08);
     }
+
+    .panel h3 { margin: 0 0 10px; }
 
     /* Gold Buttons */
 
@@ -58,6 +61,8 @@
       cursor: pointer;
     }
 
+    button:hover { filter: brightness(1.05); }
+
     input {
       width: 100%;
       margin-top: 8px;
@@ -65,13 +70,50 @@
 
       border-radius: 10px;
       border: none;
+      box-sizing: border-box;
+    }
+
+    /* Scoreboard */
+
+    .score-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .score-row.active {
+      background: rgba(212,175,55,.18);
+      font-weight: bold;
+    }
+
+    .status {
+      padding: 10px 14px;
+      background: rgba(212,175,55,.12);
+      border: 1px solid rgba(212,175,55,.3);
+      border-radius: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    /* Game area */
+
+    .game-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 16px;
     }
 
     /* Table */
 
     .table-container {
-      width: 1000px;
-      height: 700px;
+      width: 760px;
+      height: 520px;
 
       position: relative;
 
@@ -107,7 +149,19 @@
       background: rgba(0,0,0,.25);
 
       border: 2px solid rgba(255,255,255,.1);
+      transition: .2s;
+      visibility: hidden;
     }
+
+    .player-seat.active {
+      border-color: #f7d774;
+      box-shadow: 0 0 22px rgba(247,215,116,.7);
+    }
+
+    .north-player { top: 12px; left: 50%; transform: translateX(-50%); }
+    .south-player { bottom: 12px; left: 50%; transform: translateX(-50%); }
+    .west-player  { left: 12px; top: 50%; transform: translateY(-50%); }
+    .east-player  { right: 12px; top: 50%; transform: translateY(-50%); }
 
     .avatar {
       width: 60px;
@@ -127,13 +181,26 @@
 
     .seat-name {
       margin-top: 8px;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    /* Trick area in the middle of the table */
+
+    .trick-area {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      gap: 10px;
     }
 
     /* Cards */
 
     .card {
-      width: 90px;
-      height: 130px;
+      width: 70px;
+      height: 100px;
 
       background: white;
       color: black;
@@ -145,14 +212,36 @@
       justify-content: space-between;
 
       padding: 10px;
+      box-sizing: border-box;
 
       cursor: pointer;
 
       transition: .2s;
+      font-weight: bold;
     }
+
+    .card .suit { font-size: 22px; text-align: right; }
 
     .card:hover {
       transform: translateY(-18px);
+    }
+
+    .card.disabled {
+      cursor: default;
+      opacity: .8;
+    }
+
+    .card.disabled:hover { transform: none; }
+
+    .table-card { cursor: default; }
+    .table-card:hover { transform: none; }
+
+    #hand {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      min-height: 100px;
     }
 
   </style>
@@ -166,6 +255,11 @@
     <aside class="sidebar">
 
       <div class="panel">
+        <h3>Player</h3>
+        <input id="name" placeholder="Your name" maxlength="20">
+      </div>
+
+      <div class="panel">
         <h3>Room Info</h3>
 
         <div>
@@ -175,7 +269,7 @@
 
         <div style="margin-top:8px">
           Players:
-          <strong id="player-count">0</strong>
+          <strong id="player-count">0</strong> / 4
         </div>
 
         <button onclick="copyRoomCode()">
@@ -185,11 +279,7 @@
 
       <div class="panel">
         <h3>Scoreboard</h3>
-
-        <div>You: 0</div>
-        <div>North: 0</div>
-        <div>East: 0</div>
-        <div>West: 0</div>
+        <div id="scoreboard"></div>
       </div>
 
       <div class="panel">
@@ -216,6 +306,8 @@
     </aside>
 
     <main class="game-area">
+
+      <div id="status" class="status">Enter a name, then create or join a room</div>
 
       <div class="table-container">
 

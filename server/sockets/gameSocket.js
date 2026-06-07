@@ -9,64 +9,109 @@ function getRoom(roomCode) {
   return rooms[roomCode];
 }
 
+function broadcastState(io, room) {
+  io.to(room.roomCode).emit('state', room.publicState());
+}
+
+function sendHands(io, room) {
+  room.players.forEach(p => {
+    io.to(p.id).emit('your-hand', p.hand);
+  });
+}
+
 function registerGameSocket(io, socket) {
+  // Track which room this socket belongs to so we can clean up on disconnect.
+  socket.data.roomCode = null;
 
-  socket.on('create-room', (roomCode) => {
-    const room = getRoom(roomCode);
+  function join(roomCode, name) {
+    const code = String(roomCode || '').trim().toUpperCase();
+    if (!code) {
+      socket.emit('error-message', 'Invalid room code');
+      return null;
+    }
 
-    room.addPlayer(socket.id);
-    socket.join(roomCode);
+    const room = getRoom(code);
+    if (!room.addPlayer(socket.id, name)) {
+      socket.emit('error-message', 'Room is full');
+      return null;
+    }
 
-    socket.emit('room-created', roomCode);
-    io.to(roomCode).emit('player-count', room.players.length);
+    socket.join(code);
+    socket.data.roomCode = code;
+    return room;
+  }
+
+  socket.on('create-room', ({ roomCode, name } = {}) => {
+    const room = join(roomCode, name);
+    if (!room) return;
+
+    socket.emit('room-created', room.roomCode);
+    broadcastState(io, room);
   });
 
-  socket.on('join-room', (roomCode) => {
-    const room = getRoom(roomCode);
+  socket.on('join-room', ({ roomCode, name } = {}) => {
+    const room = join(roomCode, name);
+    if (!room) return;
 
-    if (!room.addPlayer(socket.id)) {
-      socket.emit('error-message', 'Room full');
+    socket.emit('room-joined', room.roomCode);
+    broadcastState(io, room);
+  });
+
+  socket.on('start-game', () => {
+    const room = rooms[socket.data.roomCode];
+    if (!room) return;
+
+    if (!room.startGame()) {
+      socket.emit('error-message', 'Need exactly 4 players to start');
       return;
     }
 
-    socket.join(roomCode);
-    io.to(roomCode).emit('player-count', room.players.length);
+    sendHands(io, room);
+    io.to(room.roomCode).emit('game-started');
+    broadcastState(io, room);
   });
 
-  socket.on('start-game', (roomCode) => {
-    const room = getRoom(roomCode);
+  socket.on('play-card', ({ index } = {}) => {
+    const room = rooms[socket.data.roomCode];
+    if (!room) return;
 
-    if (room.players.length !== 4) {
-      socket.emit('error-message', 'Need 4 players');
+    const result = room.playCard(socket.id, index);
+    if (!result.ok) {
+      socket.emit('error-message', result.error);
       return;
     }
 
-    room.startGame();
-
-    // send hands privately
-    room.players.forEach(p => {
-      io.to(p.id).emit('your-hand', p.hand);
+    io.to(room.roomCode).emit('card-played', {
+      playerId: result.playerId,
+      card: result.card
     });
 
-    io.to(roomCode).emit('game-started');
+    if (result.trickComplete) {
+      io.to(room.roomCode).emit('trick-won', { winnerId: result.trickWinner });
+    }
+    if (result.roundOver) {
+      io.to(room.roomCode).emit('round-over', { scores: result.scores });
+    }
+
+    // Refresh the playing player's hand and the shared table state.
+    socket.emit('your-hand', room.players.find(p => p.id === socket.id)?.hand || []);
+    broadcastState(io, room);
   });
 
-  socket.on('play-card', ({ roomCode, index }) => {
-    const room = getRoom(roomCode);
+  socket.on('disconnect', () => {
+    const room = rooms[socket.data.roomCode];
+    if (!room) return;
 
-    const card = room.playCard(socket.id, index);
+    room.removePlayer(socket.id);
 
-    if (!card) {
-      socket.emit('error-message', 'Invalid move');
+    if (room.players.length === 0) {
+      delete rooms[room.roomCode];
       return;
     }
 
-    io.to(roomCode).emit('card-played', {
-      playerId: socket.id,
-      card
-    });
+    io.to(room.roomCode).emit('error-message', 'A player left — game reset');
+    broadcastState(io, room);
   });
-
 }
 
 module.exports = registerGameSocket;

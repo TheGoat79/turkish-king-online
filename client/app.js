@@ -1,44 +1,143 @@
 const socket = io();
+
 let roomCode = null;
 let hand = [];
+let myId = null;
+let currentTurn = null;
 
-function updateRoomCode(){const el=document.getElementById('room-code');if(el)el.innerText=roomCode||'---';}
-function updatePlayerCount(count){const el=document.getElementById('player-count');if(el)el.innerText=count;}
-function copyRoomCode(){if(roomCode) navigator.clipboard.writeText(roomCode);}
+const SEAT_ORDER = ['south', 'west', 'north', 'east'];
+
+socket.on('connect', () => { myId = socket.id; });
+
+function $(id) { return document.getElementById(id); }
+
+function playerName() {
+  const el = $('name');
+  return el && el.value.trim() ? el.value.trim() : 'Player';
+}
+
+function updateRoomCode() {
+  const el = $('room-code');
+  if (el) el.innerText = roomCode || '---';
+}
+
+function copyRoomCode() {
+  if (roomCode) navigator.clipboard.writeText(roomCode);
+}
 
 function createRoom() {
   roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-  socket.emit('create-room', roomCode);
+  socket.emit('create-room', { roomCode, name: playerName() });
   updateRoomCode();
 }
 
 function joinRoom() {
-  roomCode = document.getElementById('room').value;
-  socket.emit('join-room', roomCode);
+  const code = $('room').value.trim().toUpperCase();
+  if (!code) return;
+  roomCode = code;
+  socket.emit('join-room', { roomCode, name: playerName() });
   updateRoomCode();
 }
 
-function startGame() { socket.emit('start-game', roomCode); }
-
-function renderHand() {
- const handDiv=document.getElementById('hand'); handDiv.innerHTML='';
- hand.forEach((card,index)=>{
-  const div=document.createElement('div');
-  div.className='card';
-  div.innerHTML=`<div>${card.rank}</div><div>${card.suit}</div>`;
-  div.onclick=()=>socket.emit('play-card',{roomCode,index});
-  handDiv.appendChild(div);
- });
+function startGame() {
+  socket.emit('start-game');
 }
 
-socket.on('room-created',(code)=>{roomCode=code;updateRoomCode();});
-socket.on('player-count',(count)=>{updatePlayerCount(count);});
-socket.on('your-hand',(serverHand)=>{hand=serverHand;renderHand();});
-socket.on('card-played',(data)=>{
- const table=document.getElementById('table');
- const div=document.createElement('div');
- div.className='card';
- div.innerHTML=`<div>${data.card.rank}</div><div>${data.card.suit}</div>`;
- table.appendChild(div);
+function renderHand() {
+  const handDiv = $('hand');
+  handDiv.innerHTML = '';
+  const myTurn = currentTurn === myId;
+  hand.forEach((card, index) => {
+    const div = document.createElement('div');
+    div.className = 'card' + (myTurn ? '' : ' disabled');
+    div.innerHTML = `<div>${card.rank}</div><div class="suit">${card.suit}</div>`;
+    if (myTurn) div.onclick = () => socket.emit('play-card', { index });
+    handDiv.appendChild(div);
+  });
+}
+
+// Place players around the table relative to me (I always sit south).
+function renderSeats(players) {
+  SEAT_ORDER.forEach(seat => {
+    const el = document.querySelector('.' + seat + '-player');
+    if (el) { el.classList.remove('active'); el.style.visibility = 'hidden'; }
+  });
+
+  const myIndex = Math.max(0, players.findIndex(p => p.id === myId));
+  players.forEach((p, i) => {
+    const seat = SEAT_ORDER[(i - myIndex + players.length) % players.length];
+    const el = document.querySelector('.' + seat + '-player');
+    if (!el) return;
+    el.style.visibility = 'visible';
+    el.querySelector('.avatar').innerText = (p.name || '?').charAt(0).toUpperCase();
+    el.querySelector('.seat-name').innerText =
+      `${p.name}${p.id === myId ? ' (you)' : ''} · ${p.tricksWon}🃏`;
+    if (p.id === currentTurn) el.classList.add('active');
+  });
+}
+
+function renderScoreboard(players) {
+  const board = $('scoreboard');
+  if (!board) return;
+  board.innerHTML = '';
+  players.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'score-row' + (p.id === currentTurn ? ' active' : '');
+    row.innerHTML = `<span>${p.name}${p.id === myId ? ' (you)' : ''}</span>` +
+      `<span>${p.score} pts · ${p.tricksWon} tricks</span>`;
+    board.appendChild(row);
+  });
+}
+
+function renderTrick(trick) {
+  const table = $('table');
+  if (!table) return;
+  table.innerHTML = '';
+  trick.forEach(({ card }) => {
+    const div = document.createElement('div');
+    div.className = 'card table-card';
+    div.innerHTML = `<div>${card.rank}</div><div class="suit">${card.suit}</div>`;
+    table.appendChild(div);
+  });
+}
+
+function setStatus(text) {
+  const el = $('status');
+  if (el) el.innerText = text;
+}
+
+socket.on('room-created', code => { roomCode = code; updateRoomCode(); });
+socket.on('room-joined', code => { roomCode = code; updateRoomCode(); });
+socket.on('your-hand', serverHand => { hand = serverHand; renderHand(); });
+socket.on('game-started', () => setStatus('Game started!'));
+
+socket.on('state', state => {
+  $('player-count').innerText = state.players.length;
+  currentTurn = state.currentTurn;
+  renderSeats(state.players);
+  renderScoreboard(state.players);
+  renderTrick(state.trick);
+  renderHand();
+
+  if (!state.started) {
+    setStatus(state.players.length < 4
+      ? `Waiting for players (${state.players.length}/4)`
+      : 'Ready — press Start Game');
+  } else {
+    const turnPlayer = state.players.find(p => p.id === state.currentTurn);
+    setStatus(state.currentTurn === myId
+      ? 'Your turn'
+      : `${turnPlayer ? turnPlayer.name : '...'}'s turn`);
+  }
 });
-socket.on('error-message',(msg)=>alert(msg));
+
+socket.on('trick-won', ({ winnerId }) => {
+  setStatus(winnerId === myId ? 'You won the trick!' : 'Trick taken');
+});
+
+socket.on('round-over', ({ scores }) => {
+  const top = [...scores].sort((a, b) => b.score - a.score)[0];
+  setStatus(`Round over — leader: ${top.name} (${top.score} pts)`);
+});
+
+socket.on('error-message', msg => setStatus('⚠ ' + msg));
