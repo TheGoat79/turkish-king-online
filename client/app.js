@@ -22,7 +22,11 @@ function updateRoomCode() {
 }
 
 function copyRoomCode() {
-  if (roomCode) navigator.clipboard.writeText(roomCode);
+  if (roomCode) {
+    navigator.clipboard.writeText(roomCode).catch(err => {
+      console.error('Failed to copy room code:', err);
+    });
+  }
 }
 
 function createRoom() {
@@ -45,6 +49,7 @@ function startGame() {
 
 function renderHand() {
   const handDiv = $('hand');
+  if (!handDiv) return;
   handDiv.innerHTML = '';
   const myTurn = currentTurn === myId;
   hand.forEach((card, index) => {
@@ -112,7 +117,8 @@ socket.on('your-hand', serverHand => { hand = serverHand; renderHand(); });
 socket.on('game-started', () => setStatus('Game started!'));
 
 socket.on('state', state => {
-  $('player-count').innerText = state.players.length;
+  const countEl = $('player-count');
+  if (countEl) countEl.innerText = state.players.length;
   currentTurn = state.currentTurn;
   if (!state.started) hand = [];
   renderSeats(state.players);
@@ -142,3 +148,13 @@ socket.on('round-over', ({ scores }) => {
 });
 
 socket.on('error-message', msg => setStatus('⚠ ' + msg));
+
+socket.on('connect_error', err => {
+  console.error('Connection error:', err.message);
+  setStatus('⚠ Unable to connect to server');
+});
+
+socket.on('disconnect', reason => {
+  console.warn('Disconnected:', reason);
+  setStatus('⚠ Disconnected from server');
+});

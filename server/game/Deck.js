@@ -21,6 +21,9 @@ class Deck {
   }
 
   deal(players) {
+    if (!players || players.length === 0) {
+      throw new Error('Cannot deal to an empty player list');
+    }
     let p = 0;
     while (this.cards.length) {
       players[p].hand.push(this.cards.pop());

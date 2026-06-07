@@ -15,6 +15,7 @@ class GameRoom {
   }
 
   addPlayer(id, name) {
+    if (this.started) return false;
     if (this.players.length >= MAX_PLAYERS) return false;
     if (this.players.some(p => p.id === id)) return true;
 

@@ -41,61 +41,89 @@ function registerGameSocket(io, socket) {
     return room;
   }
 
-  socket.on('create-room', ({ roomCode, name } = {}) => {
-    const room = join(roomCode, name);
-    if (!room) return;
+  socket.on('create-room', (data) => {
+    try {
+      const { roomCode, name } = data || {};
+      const room = join(roomCode, name);
+      if (!room) return;
 
-    socket.emit('room-created', room.roomCode);
-    broadcastState(io, room);
+      socket.emit('room-created', room.roomCode);
+      broadcastState(io, room);
+    } catch (err) {
+      console.error('create-room error:', err);
+      socket.emit('error-message', 'Server error while creating room');
+    }
   });
 
-  socket.on('join-room', ({ roomCode, name } = {}) => {
-    const room = join(roomCode, name);
-    if (!room) return;
+  socket.on('join-room', (data) => {
+    try {
+      const { roomCode, name } = data || {};
+      const room = join(roomCode, name);
+      if (!room) return;
 
-    socket.emit('room-joined', room.roomCode);
-    broadcastState(io, room);
+      socket.emit('room-joined', room.roomCode);
+      broadcastState(io, room);
+    } catch (err) {
+      console.error('join-room error:', err);
+      socket.emit('error-message', 'Server error while joining room');
+    }
   });
 
   socket.on('start-game', () => {
-    const room = rooms[socket.data.roomCode];
-    if (!room) return;
+    try {
+      const room = rooms[socket.data.roomCode];
+      if (!room) return;
 
-    if (!room.startGame()) {
-      socket.emit('error-message', 'Need exactly 4 players to start');
-      return;
+      if (!room.startGame()) {
+        socket.emit('error-message', 'Need exactly 4 players to start');
+        return;
+      }
+
+      sendHands(io, room);
+      io.to(room.roomCode).emit('game-started');
+      broadcastState(io, room);
+    } catch (err) {
+      console.error('start-game error:', err);
+      socket.emit('error-message', 'Server error while starting game');
     }
-
-    sendHands(io, room);
-    io.to(room.roomCode).emit('game-started');
-    broadcastState(io, room);
   });
 
-  socket.on('play-card', ({ index } = {}) => {
-    const room = rooms[socket.data.roomCode];
-    if (!room) return;
+  socket.on('play-card', (data) => {
+    try {
+      const { index } = data || {};
+      const room = rooms[socket.data.roomCode];
+      if (!room) return;
 
-    const result = room.playCard(socket.id, index);
-    if (!result.ok) {
-      socket.emit('error-message', result.error);
-      return;
+      if (typeof index !== 'number' || index < 0) {
+        socket.emit('error-message', 'Invalid card index');
+        return;
+      }
+
+      const result = room.playCard(socket.id, index);
+      if (!result.ok) {
+        socket.emit('error-message', result.error);
+        return;
+      }
+
+      io.to(room.roomCode).emit('card-played', {
+        playerId: result.playerId,
+        card: result.card
+      });
+
+      if (result.trickComplete) {
+        io.to(room.roomCode).emit('trick-won', { winnerId: result.trickWinner });
+      }
+      if (result.roundOver) {
+        io.to(room.roomCode).emit('round-over', { scores: result.scores });
+      }
+
+      // Refresh the playing player's hand and the shared table state.
+      socket.emit('your-hand', room.players.find(p => p.id === socket.id)?.hand || []);
+      broadcastState(io, room);
+    } catch (err) {
+      console.error('play-card error:', err);
+      socket.emit('error-message', 'Server error while playing card');
     }
-
-    io.to(room.roomCode).emit('card-played', {
-      playerId: result.playerId,
-      card: result.card
-    });
-
-    if (result.trickComplete) {
-      io.to(room.roomCode).emit('trick-won', { winnerId: result.trickWinner });
-    }
-    if (result.roundOver) {
-      io.to(room.roomCode).emit('round-over', { scores: result.scores });
-    }
-
-    // Refresh the playing player's hand and the shared table state.
-    socket.emit('your-hand', room.players.find(p => p.id === socket.id)?.hand || []);
-    broadcastState(io, room);
   });
 
   socket.on('disconnect', () => {
