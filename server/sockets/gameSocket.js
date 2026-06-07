@@ -1,6 +1,18 @@
 const GameRoom = require('../game/GameRoom');
 
-const rooms = {};
+const rooms = Object.create(null);
+
+const ROOM_CODE_RE = /^[A-Z0-9]{3,8}$/;
+const MAX_NAME_LENGTH = 20;
+
+function isValidRoomCode(code) {
+  return typeof code === 'string' && ROOM_CODE_RE.test(code);
+}
+
+function sanitizeName(name) {
+  const str = String(name || '').trim().slice(0, MAX_NAME_LENGTH);
+  return str.replace(/[<>"'&]/g, '') || 'Player';
+}
 
 function getRoom(roomCode) {
   if (!rooms[roomCode]) {
@@ -20,18 +32,19 @@ function sendHands(io, room) {
 }
 
 function registerGameSocket(io, socket) {
-  // Track which room this socket belongs to so we can clean up on disconnect.
   socket.data.roomCode = null;
 
   function join(roomCode, name) {
     const code = String(roomCode || '').trim().toUpperCase();
-    if (!code) {
+    if (!isValidRoomCode(code)) {
       socket.emit('error-message', 'Invalid room code');
       return null;
     }
 
+    const safeName = sanitizeName(name);
+
     const room = getRoom(code);
-    if (!room.addPlayer(socket.id, name)) {
+    if (!room.addPlayer(socket.id, safeName)) {
       socket.emit('error-message', 'Room is full');
       return null;
     }
@@ -41,16 +54,24 @@ function registerGameSocket(io, socket) {
     return room;
   }
 
-  socket.on('create-room', ({ roomCode, name } = {}) => {
-    const room = join(roomCode, name);
+  socket.on('create-room', (data) => {
+    if (!data || typeof data !== 'object') {
+      socket.emit('error-message', 'Invalid data');
+      return;
+    }
+    const room = join(data.roomCode, data.name);
     if (!room) return;
 
     socket.emit('room-created', room.roomCode);
     broadcastState(io, room);
   });
 
-  socket.on('join-room', ({ roomCode, name } = {}) => {
-    const room = join(roomCode, name);
+  socket.on('join-room', (data) => {
+    if (!data || typeof data !== 'object') {
+      socket.emit('error-message', 'Invalid data');
+      return;
+    }
+    const room = join(data.roomCode, data.name);
     if (!room) return;
 
     socket.emit('room-joined', room.roomCode);
@@ -71,7 +92,19 @@ function registerGameSocket(io, socket) {
     broadcastState(io, room);
   });
 
-  socket.on('play-card', ({ index } = {}) => {
+  socket.on('play-card', (data) => {
+    if (!data || typeof data !== 'object') {
+      socket.emit('error-message', 'Invalid data');
+      return;
+    }
+
+    const { index } = data;
+
+    if (!Number.isInteger(index) || index < 0) {
+      socket.emit('error-message', 'Invalid card index');
+      return;
+    }
+
     const room = rooms[socket.data.roomCode];
     if (!room) return;
 
@@ -93,7 +126,6 @@ function registerGameSocket(io, socket) {
       io.to(room.roomCode).emit('round-over', { scores: result.scores });
     }
 
-    // Refresh the playing player's hand and the shared table state.
     socket.emit('your-hand', room.players.find(p => p.id === socket.id)?.hand || []);
     broadcastState(io, room);
   });
