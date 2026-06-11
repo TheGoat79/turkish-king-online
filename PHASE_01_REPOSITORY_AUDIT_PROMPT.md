@@ -9,29 +9,241 @@
 - Ask the project owner for approval before merging.
 
 Suggested branch name:
+
 feature/phase-01-repository-audit
 
-## Goal
-Perform a complete audit of the Turkish King Online repository and understand the existing architecture before future development.
+---
 
-## Tasks
-1. Inventory all files and folders.
-2. Document frontend architecture.
-3. Document backend architecture.
-4. Document Socket.IO and multiplayer flow.
-5. Document room creation and join flow.
-6. Document game state structures.
-7. Analyze UI against the current game-table design.
-8. Identify technical debt and missing systems.
-9. Assess readiness for login, passkeys, and local storage.
+# Goal
 
-## Required Reports
-- REPOSITORY_AUDIT.md
-- ARCHITECTURE_REPORT.md
-- MULTIPLAYER_AUDIT.md
-- UI_AUDIT.md
-- TECHNICAL_DEBT_REPORT.md
-- PHASE_01_SUMMARY.md
+Perform a complete audit of the Turkish King Online repository and fully understand the existing architecture before any future development.
 
-## Done Criteria
-Repository documented, findings reported, work committed to a branch, and owner approval requested before merge.
+This phase is strictly an audit, planning, and reporting phase.
+
+Do NOT begin implementing major new systems until all audit reports are completed and presented to the project owner.
+
+---
+
+# Current Project Context
+
+The repository currently contains:
+
+- Node.js
+- Express
+- Socket.IO
+- HTML/CSS/JavaScript frontend
+- Multiplayer rooms
+- Trick-taking gameplay
+- Follow-suit enforcement
+- Basic scoring
+
+The repository currently represents a simplified trick-taking card game and does NOT yet implement the complete Turkish King (Kral) ruleset.
+
+---
+
+# Audit Tasks
+
+## Architecture Audit
+
+Document:
+
+- Server architecture
+- Socket event architecture
+- Frontend architecture
+- State management flow
+- Room management flow
+- Player lifecycle
+- Deck lifecycle
+- Trick resolution logic
+- Scoring logic
+- Game loop lifecycle
+
+Create architecture diagrams where useful.
+
+---
+
+## Feature Inventory
+
+Create a complete feature matrix.
+
+For every system indicate:
+
+- Exists
+- Partial
+- Missing
+
+Examples:
+
+- Room creation
+- Room joining
+- Reconnect support
+- Spectator support
+- Matchmaking
+- Chat
+- Replay system
+- Statistics
+- Authentication
+- Match scoring
+- Contract system
+- Bot players
+
+---
+
+## Multiplayer Audit
+
+Document:
+
+- Socket events
+- Event ownership
+- State synchronization strategy
+- Race condition risks
+- Disconnect handling
+- Scalability concerns
+
+---
+
+## UI Audit
+
+Document:
+
+- Current layout
+- Mobile readiness
+- Accessibility concerns
+- Responsiveness
+- UX issues
+- Missing gameplay indicators
+
+Compare current UI against a complete online Turkish King experience.
+
+---
+
+## Technical Debt Audit
+
+Identify:
+
+- Missing validation
+- Security concerns
+- Scalability limitations
+- Coupled systems
+- Refactor opportunities
+- Testing gaps
+- Persistence limitations
+
+---
+
+## Future Feature Readiness Assessment
+
+Assess how prepared the architecture is for:
+
+- Authentication
+- Passkeys
+- Local storage
+- Reconnect support
+- Full Turkish King contracts
+- Statistics
+- Replays
+- Spectators
+- Bot players
+- Matchmaking
+- Rankings and ELO
+
+---
+
+# Roadmap Planning Deliverable
+
+Based on the audit, create a detailed implementation strategy for the following phases:
+
+## Phase 02
+- Full Turkish King contract system
+- Contract selection flow
+- King rotation
+- Match scoring
+
+## Phase 03
+- Reconnect and session recovery
+
+## Phase 04
+- Trick history and card tracking
+
+## Phase 05
+- Bot players
+
+## Phase 06
+- Chat and social systems
+
+## Phase 07
+- Spectator mode
+
+## Phase 08
+- Matchmaking
+
+## Phase 09
+- Statistics and player profiles
+
+## Phase 10
+- Replay system
+
+## Phase 11
+- UI and UX polish
+
+## Phase 12
+- Testing and stabilization
+
+For every phase provide:
+
+- Complexity estimate
+- Risk assessment
+- Dependencies
+- Recommended implementation order
+- Suggested architecture
+
+---
+
+# Required Reports
+
+Generate all of the following:
+
+- docs/PHASE_01_AUDIT_REPORT.md
+- docs/REPOSITORY_AUDIT.md
+- docs/ARCHITECTURE_REPORT.md
+- docs/MULTIPLAYER_AUDIT.md
+- docs/UI_AUDIT.md
+- docs/TECHNICAL_DEBT_REPORT.md
+- docs/PHASE_01_SUMMARY.md
+
+---
+
+# Mandatory Report Back To Project Owner
+
+When Phase 01 is completed:
+
+STOP all work.
+
+Do NOT continue into Phase 02.
+
+Provide the project owner with:
+
+1. Summary of findings
+2. Major risks discovered
+3. Architecture recommendations
+4. Technical debt assessment
+5. Estimated effort for future phases
+6. Recommended implementation order
+7. List of generated reports
+
+Ask the project owner for approval before proceeding.
+
+No additional implementation work should begin until approval is received.
+
+---
+
+# Done Criteria
+
+Phase 01 is only considered complete when:
+
+- Repository has been fully audited
+- All required reports have been generated
+- Findings have been presented to the owner
+- Future roadmap recommendations have been documented
+- Approval has been requested from the owner
+- No implementation work has started beyond the audit phase
